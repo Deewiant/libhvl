@@ -1,30 +1,38 @@
 .PHONY: always all clean install
 
-all: hivelytracker/hvl2wav/hvl2wav libhvl.so libhvl.h
+all: hvl2wav libhvl.so libhvl.h
 
-hivelytracker/hvl2wav/hvl2wav: always
-	$(MAKE) -C hivelytracker/hvl2wav CFLAGS="$(CFLAGS) -fPIC"
-
-libhvl.so: hivelytracker/hvl2wav/hvl2wav
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -shared -o $@ hivelytracker/hvl2wav/replay.o -lm
-
-# The sed does:
-# - Use standard type names (see upstream types.h, adapted here to be based on
-#   stdint.h; and yes, BOOL is short)
+# sed command for:
+# - Using standard type names (see upstream types.h, adapted here to be based on
+#   stdbool.h and stdint.h) and standard true/false
 # - Rename MAX_CHANNELS with a HVL_ prefix
-# - Remove Period2Freq
+FIX_TYPES := 's/int\(8\|16\|32\)/&_t/g; s/float64/double/g; s/TEXT/char/g; s/BOOL/bool/g; s/MAX_CHANNELS/HVL_&/g; s/FALSE/false/g; s/TRUE/true/g; s/CONST/const/g'
+
+%.c: hivelytracker/hvl2wav/%.c hivelytracker/hvl2wav/replay.h
+	grep Period2Freq hivelytracker/hvl2wav/replay.h > $@
+	sed -e $(FIX_TYPES) -e 's/replay\.h/libhvl.h/; /types\.h/d' $< >> $@
+
+%.o: %.c libhvl.h
+	$(CC) -c -std=gnu99 $(CPPFLAGS) $(CFLAGS) -fPIC -o $@ $<
+
+hvl2wav: hvl2wav.o replay.o
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ $+ -lm
+
+libhvl.so: hvl2wav.o replay.o
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -shared -o $@ $+ -lm
+
 libhvl.h: hivelytracker/hvl2wav/replay.h prefix.h suffix.h
 	cat prefix.h > $@
-	sed 's/int\(8\|16\|32\)/&_t/g; s/float64/double/g; s/TEXT/char/g; s/BOOL/short/g; s/MAX_CHANNELS/HVL_&/g; /Period2Freq/d' $< >> $@
+	sed -e $(FIX_TYPES) -e /Period2Freq/d $< >> $@
 	cat suffix.h >> $@
 
 clean:
-	rm -f hivelytracker/hvl2wav/hvl2wav hivelytracker/hvl2wav/*.o libhvl.so libhvl.h
+	rm -f replay.c replay.o hvl2wav.c hvl2wav.o hvl2wav libhvl.so libhvl.h
 
 PREFIX := /usr/local
 
 install: all
 	install -Dm644 -t $(PREFIX)/lib libhvl.so
 	install -Dm644 -t $(PREFIX)/include libhvl.h
-	install -Dm755 -t $(PREFIX)/bin hivelytracker/hvl2wav/hvl2wav
+	install -Dm755 -t $(PREFIX)/bin hvl2wav
 	install -Dm644 -t $(PREFIX)/doc/libhvl hivelytracker/LICENSE
