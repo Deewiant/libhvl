@@ -1,0 +1,3 @@
+[submodule "hivelytracker"]
+	path = hivelytracker
+	url = https://github.com/pete-gordon/hivelytracker.git
