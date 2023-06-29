@@ -18,7 +18,7 @@ FIX_TYPES := 's/int\(8\|16\|32\)/&_t/g; s/float64/double/g; s/TEXT/char/g; s/BOO
 hvl2wav: hvl2wav.o replay.o
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ $+ -lm
 
-libhvl.so: hvl2wav.o replay.o
+libhvl.so: replay.o
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -shared -o $@ $+ -lm
 
 libhvl.h: hivelytracker/hvl2wav/replay.h prefix.h suffix.h
